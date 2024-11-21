@@ -1,0 +1,10 @@
+POST http://localhost:8000/generate HTTP/1.1
+content-type: application/json
+  
+{
+    "positive_prompt": "farid devant les pyramides",
+    "character_name": "farid",
+    "resolution": [1024, 1024],
+    "steps": 25,
+    "lora_version": "1.0.0"
+}

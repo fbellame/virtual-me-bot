@@ -1,0 +1,9 @@
+chainlit
+websocket-client
+pillow
+python-dotenv
+openai
+requests
+PyYAML
+websockets
+semantic-version

@@ -1,0 +1,40 @@
+{
+  "farid": [
+    {
+      "lora_name": "Farid_flux_lora_v6.safetensors",
+      "version": "6.0.0",
+      "created_at": "2024-11-20T21:20:05.215796",
+      "description": "Initial training",
+      "training_config": null,
+      "file_path": null
+    },
+    {
+      "lora_name": "farid_flux_lora.safetensors",
+      "version": "1.0.0",
+      "created_at": "2024-11-18T00:00:00",
+      "description": "Initial Farid LORA model",
+      "training_config": null,
+      "file_path": null
+    }
+  ],
+  "arielle": [
+    {
+      "lora_name": "arielle_flux_lora_v2.safetensors",
+      "version": "2.0.0",
+      "created_at": "2024-11-18T00:00:00",
+      "description": "Second iteration of Arielle LORA model",
+      "training_config": null,
+      "file_path": null
+    }
+  ],
+  "clementine": [
+    {
+      "lora_name": "Clementine_flux_lora_v6.safetensors",
+      "version": "6.0.0",
+      "created_at": "2024-11-20T23:59:22.106196",
+      "description": "Initial training",
+      "training_config": null,
+      "file_path": null
+    }
+  ]
+}

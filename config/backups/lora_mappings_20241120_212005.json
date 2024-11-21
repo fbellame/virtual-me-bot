@@ -1,0 +1,22 @@
+{
+    "farid": [
+      {
+        "lora_name": "farid_flux_lora.safetensors",
+        "version": "1.0.0",
+        "created_at": "2024-11-18T00:00:00",
+        "description": "Initial Farid LORA model",
+        "training_config": null,
+        "file_path": null
+      }
+    ],
+    "arielle": [
+      {
+        "lora_name": "arielle_flux_lora_v2.safetensors",
+        "version": "2.0.0",
+        "created_at": "2024-11-18T00:00:00",
+        "description": "Second iteration of Arielle LORA model",
+        "training_config": null,
+        "file_path": null
+      }
+    ]
+  }
