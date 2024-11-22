@@ -1,0 +1,51 @@
+{
+    "start_prompt": {
+      "fr": "Que voulez-vous faire?",
+      "en": "What would you like to do?"
+    },
+    "generation_label": {
+      "fr": "Génération",
+      "en": "Generation"
+    },
+    "training_label": {
+      "fr": "Entrainement",
+      "en": "Training"
+    },
+    "character_prompt": {
+      "fr": "Quel personnage?",
+      "en": "Which character?"
+    },
+    "no_character": {
+      "fr": "Aucun",
+      "en": "None"
+    },
+    "describe_image": {
+      "fr": "Décrit moi l'image que tu veux générer",
+      "en": "Describe the image you want to generate"
+    },
+    "upload_images": {
+      "fr": "Téléverse 10 photos de toi pour commencer...",
+      "en": "Upload 10 photos of yourself to start..."
+    },
+    "name_prompt": {
+      "fr": "Quel est ton prénom?",
+      "en": "What is your first name?"
+    },
+    "training_start_message": {
+      "fr": "Merci {name}, l'entrainement sur tes images va débuter. Cela peut durer jusqu'à 3 heures.\n Soit patient, tu seras récompensé ;-)",
+      "en": "Thank you {name}, training on your images will start. It may take up to 3 hours.\n Be patient, you'll be rewarded ;-)"
+    },
+    "training_done_message": {
+      "fr": "Entrainement terminé...",
+      "en": "Training completed..."
+    },
+    "photo_ready": {
+      "fr": "Ta photo:",
+      "en": "Your photo:"
+    },
+    "dataset_done_message": {
+      "fr": "Dataset réalisé...",
+      "en": "Dataset completed..."
+    }
+  }
+  

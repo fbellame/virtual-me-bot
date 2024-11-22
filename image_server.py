@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import logging
 import requests
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +16,7 @@ from collections import deque
 import threading
 from lora_manager import LoraMappingManager
 from contextlib import asynccontextmanager
-from image import get_images, generate_images
+from image import generate_images
 from utils import ProgressBar
 from fastapi import HTTPException
 import io
@@ -214,23 +214,24 @@ queue_manager = TrainingQueueManager()
 @app.post("/generate")
 async def generate_image(request: GenerateImageRequest):
     try:
-        # Get appropriate LORA adapter
         lora_name = None
-        if request.lora_version:
-            lora_name = lora_manager.get_specific_version(
-                request.character_name,
-                request.lora_version
-            )
-        else:
-            lora_name = lora_manager.get_latest_lora(request.character_name)
+        # Get appropriate LORA adapter
+        if request.character_name != "":
+            if request.lora_version:
+                lora_name = lora_manager.get_specific_version(
+                    request.character_name,
+                    request.lora_version
+                )
+            else:
+                lora_name = lora_manager.get_latest_lora(request.character_name)
+                
+            if not lora_name:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No LORA adapter found for character: {request.character_name}"
+                )
             
-        if not lora_name:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No LORA adapter found for character: {request.character_name}"
-            )
-        
-        print(f"Using Lora adapter {lora_name}")
+            print(f"Using Lora adapter {lora_name}")
         
         pg =ProgressBar()
         images, seed = generate_images(

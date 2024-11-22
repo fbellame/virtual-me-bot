@@ -3,15 +3,22 @@ import shutil
 import chainlit as cl
 import logging
 from chainlit.input_widget import Select
-from image import generate_images, clean_dataset_folder, DESTINATION_FOLDER
+from image import clean_dataset_folder, DESTINATION_FOLDER
 from prepare_dataset import process_images
-from utils import ProgressBar
+from utils import ProgressBar, generate_image, train_model, start_comfyui, stop_comfyui
 import yaml
 from lora_manager import LoraMappingManager, LoraVersion
 from datetime import datetime
+from typing import Optional, Dict
+import chainlit as cl
+import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Server URL
-SERVER_URL = "http://localhost:8886"
+IMAGE_SERVER_URL = os.getenv('IMAGE_SERVER_URL', "http://localhost:8886")
 
 # Get the directory of the currently running script
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,73 +26,44 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(current_dir, "config")    
 config_file = os.path.join(output_path, "lora_mappings.json")
 
+def load_users(file_path):
+    """Load the configuration from a JSON file."""
+    with open(file_path, "r") as file:
+        return json.load(file)
+
+# Load the configuration at the start of your application
+output_path = os.path.join(current_dir, "user_config")    
+user_config_file = os.path.join(output_path, "users.json")
+user_config = load_users(user_config_file)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+@cl.password_auth_callback
+def auth_callback(username: str, password: str):
+    # Look for the user in the configuration
+    for user in user_config.get("users", []):
+        if username == user["username"] and password == user["password"]:
+            return cl.User(
+                identifier=user["username"], 
+                metadata={"role": user["role"], "provider": user["provider"]}
+            )
+    return None
 
-import requests
-import base64
-
-def generate_image(server_url, positive_prompt, character_name, resolution=(512, 512), steps=25, lora_version=None, output_path="output"):
-    """
-    Calls the /generate endpoint to create an image based on the given parameters and saves it locally.
-    
-    Parameters:
-        server_url (str): The URL of the image generation server.
-        positive_prompt (str): The prompt for the image generation.
-        character_name (str): The character name for selecting the LORA adapter.
-        resolution (tuple): The resolution of the generated image (width, height).
-        steps (int): The number of steps for the image generation.
-        lora_version (str): The LORA version to use (default: latest).
-        output_path (str): Path to save the generated image.
-    
-    Returns:
-        str: The seed used for generation, or None if the request fails.
-    """
-    # Payload for the request
-    payload = {
-        "positive_prompt": positive_prompt,
-        "character_name": character_name,
-        "resolution": list(resolution),
-        "steps": steps,
-        "lora_version": lora_version,
-    }
-
-    # Get the directory of the currently running script
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Construct the full path to the config file
-    output_path = os.path.join(current_dir, output_path)
-
-    
-    try:
-        # Make a POST request to the server
-        response = requests.post(f"{server_url}/generate", json=payload)
-        response.raise_for_status()  # Raise exception for HTTP errors
-
-        # Parse the response
-        result = response.json()
-        image_data = result.get("image", None)
-        seed = result.get("seed", None)
-
-        if image_data and seed is not None:
-            # Decode base64 image and save it
-            image_base64 = image_data.split(",")[1]  # Remove the data URL prefix
-            output_path = os.path.join(output_path, f"img_{seed}.png")  # Use img_{seed} for the file name
-            with open(output_path, "wb") as img_file:
-                img_file.write(base64.b64decode(image_base64))
-            print(f"Image generated and saved as {output_path}")
-        else:
-            print("No image or seed returned in the response.")
-        
-        return output_path, seed
-    
-    except requests.exceptions.RequestException as e:
-        print(f"Error during request: {e}")
-        return None
-
+@cl.oauth_callback
+def oauth_callback(
+  provider_id: str,
+  token: str,
+  raw_user_data: Dict[str, str],
+  default_user: cl.User,
+) -> Optional[cl.User]:
+  return default_user
 
 @cl.on_chat_start
 async def start_chat():
+
+    app_user = cl.user_session.get("user")
+    await cl.Message(f"Salut {app_user.identifier}").send()    
 
     manager = LoraMappingManager(config_file)
 
@@ -113,6 +91,7 @@ async def start_chat():
                 cl.Action(name=character, value=character, label=character.capitalize())
                 for character in characters
             ]
+            character_actions.append(cl.Action(name="aucun", value="", label="Aucun"))
 
             # Send character selection prompt
             response = await cl.AskActionMessage(
@@ -123,20 +102,18 @@ async def start_chat():
             if response is not None:
                 character_name = response['value']
 
-                response = await cl.AskUserMessage(content="Décrit moi l'image que tu veux générer en incluent ton personnage au début de ton prompt:", timeout=3000).send()
+                perso = ""
+                if character_name != '':
+                    perso = f" en incluant {response["label"]} au début de ton prompt"
+
+                response = await cl.AskUserMessage(
+                    content=f"Décrit moi l'image que tu veux générer{perso}:", 
+                    timeout=3000).send()
 
                 if response is not None:
                     positive_prompt = response['output']
 
-                    img, seed = generate_image(
-                        server_url=SERVER_URL,
-                        positive_prompt=positive_prompt,
-                        character_name=character_name,
-                        resolution=(1024, 1024),
-                        steps=20
-                    )
-
-                    element = cl.Image(name=f"img_{seed}.png", path=img, display="inline", size="large")
+                    element = await generate_image_tool(positive_prompt, character_name)
 
                     # Let the user know that the system is ready
                     await cl.Message(
@@ -185,8 +162,25 @@ async def start_chat():
 
         result = await train_image_tool(message, prenom['output'])
 
-        await cl.Message(content="Entrainement terminé...").send()
+        if result:
+            await cl.Message(content="Entrainement terminé...").send()
+        else:
+            await cl.Message(content="Désolé une erreur s'est produite...").send()
 
+@cl.step(type="tool")
+async def generate_image_tool(positive_prompt: str, character_name : str):
+
+    img, seed = generate_image(
+        server_url=IMAGE_SERVER_URL,
+        positive_prompt=positive_prompt,
+        character_name=character_name,
+        resolution=(1024, 1024),
+        steps=20
+    )
+
+    element = cl.Image(name=f"img_{seed}.png", path=img, display="inline", size="large")
+
+    return element
 
 @cl.on_settings_update
 async def setup_agent(settings):
@@ -216,16 +210,16 @@ async def prepare_image_tool(message: cl.Message, character_name : str):
 
     return True   
 
-def train_model(config_data):
-    url = "http://localhost:8888/train"
-    response = requests.post(url, json={"config_data": config_data})
-    if response.status_code == 200:
-        print(response.json()["message"])
-    else:
-        print(f"Error: {response.json()['detail']}")
-
 @cl.step(type="tool")
 async def train_image_tool(message: cl.Message, character_name : str):
+
+    # Call the stop_comfyui function
+    try:
+        stop_comfyui()
+    except Exception as e:
+        print(f"Error stopping ComfyUI: {e}")
+        return False
+
     # Load the config file
     with open("config/train_lora_24gb.yaml", "r") as f:
         config_data = yaml.safe_load(f)
@@ -239,22 +233,31 @@ async def train_image_tool(message: cl.Message, character_name : str):
     # Debug: Print the updated configuration for verification
     print(config_data)
 
-    train_model(config_data)
+    if train_model(config_data):
 
-    manager = LoraMappingManager(config_file)
+        manager = LoraMappingManager(config_file)
+        
+        # Add a mapping
+        new_version = LoraVersion(
+            lora_name=f"{config_data['config']['name']}.safetensors",
+            version="6.0.0",
+            created_at=datetime.now().isoformat(),
+            description="Initial training"
+        )
+        manager.add_mapping(character_name, new_version)
+
+        # move Lora adapter into ComfyUI  
+        shutil.move(
+            f"/media/farid/data1/projects/ai-toolkit/{config_data['config']['process'][0]['training_folder']}/{config_data['config']['name']}/{config_data['config']['name']}.safetensors", 
+            "/media/farid/data1/projects/ComfyUI/models")
+
+        return True
     
-    # Add a mapping
-    new_version = LoraVersion(
-        lora_name=f"{config_data['config']['name']}.safetensors",
-        version="6.0.0",
-        created_at=datetime.now().isoformat(),
-        description="Initial training"
-    )
-    manager.add_mapping(character_name, new_version)
-
-    # move Lora adapter into ComfyUI  
-    shutil.move(
-        f"/media/farid/data1/projects/ai-toolkit/{config_data['config']['process'][0]['training_folder']}/{config_data['config']['name']}/{config_data['config']['name']}.safetensors", 
-        "/media/farid/data1/projects/ComfyUI/models")
-
-    return True
+    # Call the stop_comfyui function
+    try:
+        start_comfyui()
+    except Exception as e:
+        print(f"Error stopping ComfyUI: {e}")
+        return False    
+    
+    return False

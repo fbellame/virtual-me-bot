@@ -1,14 +1,6 @@
 {
   "farid": [
     {
-      "lora_name": "Farid_flux_lora_v6.safetensors",
-      "version": "6.0.0",
-      "created_at": "2024-11-20T21:20:05.215796",
-      "description": "Initial training",
-      "training_config": null,
-      "file_path": null
-    },
-    {
       "lora_name": "farid_flux_lora.safetensors",
       "version": "1.0.0",
       "created_at": "2024-11-18T00:00:00",

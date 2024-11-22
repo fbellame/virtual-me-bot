@@ -164,3 +164,4 @@ cython_debug/
 dataset/
 .files/
 output/
+user_config/

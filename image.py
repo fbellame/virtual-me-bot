@@ -131,25 +131,44 @@ def generate_images(positive_prompt, lora_adapter, progress_bar, steps=25, resol
     print(f"Establishing WebSocket connection to {ws_url}")
     ws.connect(ws_url)
     
-    # Load workflow from file and print it
-    print("Loading the image generation workflow from 'workflow.json'.")
-    with open("./workflow/workflow.json", "r", encoding="utf-8") as f:
-        workflow_data = f.read()
+    if lora_adapter is not None:
+        # Load workflow from file and print it
+        print("Loading the image generation workflow from 'workflow.json'.")
+        with open("./workflow/workflow.json", "r", encoding="utf-8") as f:
+            workflow_data = f.read()
 
-    workflow = json.loads(workflow_data)
-    
-    workflow["6"]["inputs"]["text"] = positive_prompt
+        workflow = json.loads(workflow_data)
+        
+        workflow["6"]["inputs"]["text"] = positive_prompt
 
-    print(f"Setting resolution to {resolution[0]}x{resolution[1]}")
-    workflow["27"]["inputs"]["width"] = resolution[0]
-    workflow["27"]["inputs"]["height"] = resolution[1]
-    workflow["39"]["inputs"]["lora_name"] = lora_adapter
+        print(f"Setting resolution to {resolution[0]}x{resolution[1]}")
+        workflow["27"]["inputs"]["width"] = resolution[0]
+        workflow["27"]["inputs"]["height"] = resolution[1]
+        workflow["39"]["inputs"]["lora_name"] = lora_adapter
 
-    # Set a random seed for the KSampler node
-    seed = random.randint(1, 1000000000)
-    print(f"Setting random seed for generation: {seed}")
-    workflow["25"]["inputs"]["noise_seed"] = seed
-    
+        # Set a random seed for the KSampler node
+        seed = random.randint(1, 1000000000)
+        print(f"Setting random seed for generation: {seed}")
+        workflow["25"]["inputs"]["noise_seed"] = seed
+    else:
+        # Load workflow from file and print it
+        print("Loading the image generation workflow from 'workflow_no_lora.json'.")
+        with open("./workflow/workflow_no_lora.json", "r", encoding="utf-8") as f:
+            workflow_data = f.read()
+
+        workflow = json.loads(workflow_data)
+        
+        workflow["6"]["inputs"]["text"] = positive_prompt
+
+        print(f"Setting resolution to {resolution[0]}x{resolution[1]}")
+        workflow["27"]["inputs"]["width"] = resolution[0]
+        workflow["27"]["inputs"]["height"] = resolution[1]
+
+        # Set a random seed for the KSampler node
+        seed = random.randint(1, 1000000000)
+        print(f"Setting random seed for generation: {seed}")
+        workflow["25"]["inputs"]["noise_seed"] = seed
+   
     # Fetch generated images
     images = get_images(ws, workflow, progress_bar)
 
