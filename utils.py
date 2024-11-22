@@ -4,6 +4,8 @@ import os
 import base64
 import subprocess
 
+DATASET_FOLDER = "dataset"
+
 class ProgressBar:
     def __init__(self, pct=0):
         self._pct = pct
@@ -138,3 +140,33 @@ def stop_comfyui():
     except subprocess.CalledProcessError as e:
         print(f"Error occurred while stopping ComfyUI:\n{e.stderr}")
         raise e    
+    
+    import os
+import zipfile
+
+def create_zip_from_folder(dataset_folder, output_zip):
+    """
+    Create a zip file from a dataset folder.
+    
+    Args:
+        dataset_folder (str): Path to the dataset folder.
+        output_zip (str): Path for the output zip file.
+    """
+    if not os.path.exists(dataset_folder):
+        raise FileNotFoundError(f"The folder '{dataset_folder}' does not exist.")
+    
+    # Create a zip file
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(dataset_folder):
+            for file in files:
+                # Write each file to the zip file
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, dataset_folder)  # Preserve folder structure in zip
+                zipf.write(file_path, arcname)
+
+    print(f"Zip file created: {output_zip}")
+
+# Example usage
+dataset_folder = "path/to/dataset_folder"  # Replace with your dataset folder path
+output_zip = "path/to/output_dataset.zip"  # Replace with desired output zip file path
+

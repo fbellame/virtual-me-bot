@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, HTTPException, Path as FastAPIPath, Query
+from fastapi import FastAPI, File, HTTPException, Path as FastAPIPath
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
@@ -281,7 +281,7 @@ async def generate_image(request: GenerateImageRequest):
         logger.error(f"Error in generate_image: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/train")
+@app.post("/train_old")
 async def train_model(config: TrainingConfig):
     try:
         request_id = queue_manager.add_to_queue(config)
@@ -338,6 +338,53 @@ async def get_all_characters():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.post("/train")
+async def train_endpoint(
+    dataset_zip: str, yaml_path: str, username: str, character_name: str
+):
+    """Queue a training request"""
+    import uuid
+    from datetime import datetime
+    import os
+    import json
+
+    # Define the queue folder
+    queue_folder = "queue"
+    if not os.path.exists(queue_folder):
+        os.makedirs(queue_folder)
+
+    try:
+        # Create a unique ID for the request
+        request_id = str(uuid.uuid4())
+        
+        # Prepare the request data
+        submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        request_data = {
+            "id": request_id,
+            "dataset_zip": dataset_zip,
+            "yaml_path": yaml_path,
+            "submit_time": submit_time,
+            "username": username,
+            "character_name": character_name,
+            "status": "queued"
+        }
+        
+        # Define the output file path
+        json_path = os.path.join(queue_folder, f"{request_id}.json")
+        
+        # Save the request to the queue folder
+        with open(json_path, "w") as f:
+            json.dump(request_data, f, indent=4)
+        
+        return JSONResponse(
+            status_code=200,
+            content={"message": "Training request queued successfully.", "request_id": request_id}
+        )
+    except Exception as e:
+        logger.error(f"Error queuing training request: {e}")
+        raise HTTPException(status_code=500, detail="Failed to queue training request.")
+    
 
 if __name__ == "__main__":
     import uvicorn

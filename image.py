@@ -9,16 +9,15 @@ import os
 import requests
 import logging
 import shutil
+from utils import DATASET_FOLDER
 from utils import ProgressBar
 
 # Step 1: Initialize the connection settings and load environment variables
 load_dotenv()
 
-# Path to the destination folder
-DESTINATION_FOLDER = "dataset"
 CONFIG_PATH = "config/train_lora_24gb.yaml"
 
-def clean_dataset_folder(folder_path=DESTINATION_FOLDER):
+def clean_dataset_folder(folder_path=DATASET_FOLDER):
     """
     Removes all files from the specified folder. Creates the folder if it doesn't exist.
     """
