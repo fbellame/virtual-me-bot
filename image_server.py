@@ -104,6 +104,16 @@ class TrainingRequest(BaseModel):
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
 
+class TrainingRequestExt(BaseModel):
+    id: str
+    dataset_zip: str
+    yaml_path: str
+    status: TrainingStatus
+    created_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    username: str
+    character_name: str
+
 # Training Queue Manager
 class TrainingQueueManager:
     def __init__(self):
@@ -340,11 +350,8 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/train")
-async def train_endpoint(
-    dataset_zip: str, yaml_path: str, username: str, character_name: str
-):
+async def train_endpoint(request: TrainingRequestExt):
     """Queue a training request"""
-    import uuid
     from datetime import datetime
     import os
     import json
@@ -355,23 +362,22 @@ async def train_endpoint(
         os.makedirs(queue_folder)
 
     try:
-        # Create a unique ID for the request
-        request_id = str(uuid.uuid4())
+
         
         # Prepare the request data
         submit_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         request_data = {
-            "id": request_id,
-            "dataset_zip": dataset_zip,
-            "yaml_path": yaml_path,
+            "id": request.id,
+            "dataset_zip": request.dataset_zip,
+            "yaml_path": request.yaml_path,
             "submit_time": submit_time,
-            "username": username,
-            "character_name": character_name,
-            "status": "queued"
+            "username": request.username,
+            "character_name": request.character_name,
+            "status": request.status
         }
         
         # Define the output file path
-        json_path = os.path.join(queue_folder, f"{request_id}.json")
+        json_path = os.path.join(queue_folder, f"{request.id}.json")
         
         # Save the request to the queue folder
         with open(json_path, "w") as f:
@@ -379,7 +385,7 @@ async def train_endpoint(
         
         return JSONResponse(
             status_code=200,
-            content={"message": "Training request queued successfully.", "request_id": request_id}
+            content={"message": "Training request queued successfully.", "request_id": request.id}
         )
     except Exception as e:
         logger.error(f"Error queuing training request: {e}")

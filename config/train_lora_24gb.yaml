@@ -8,7 +8,7 @@ config:
       # root folder to save training sessions/samples/weights
       training_folder: "output_arielle"
       # uncomment to see performance stats in the terminal every N steps
-      performance_log_every: 50
+      performance_log_every: 1000
       device: cuda:0
       # if a trigger word is specified, it will be added to captions of training data if it does not already exist
       # alternatively, in your captions you can add [trigger] and it will be replaced with the trigger word
@@ -19,7 +19,7 @@ config:
         linear_alpha: 32
       save:
         dtype: float16 # precision to save
-        save_every: 50 # save every this many steps
+        save_every: 250 # save every this many steps
         max_step_saves_to_keep: 4 # how many intermittent saves to keep
         push_to_hub: false #change this to True to push your trained model to Hugging Face.
         # You can either set up a HF_TOKEN env variable or you'll be prompted to log-in         
@@ -31,7 +31,7 @@ config:
         # images will automatically be resized and bucketed into the resolution specified
         # on windows, escape back slashes with another backslash so
         # "C:\\path\\to\\images\\folder"
-        - folder_path: "/media/farid/data1/projects/virtual-me-bot/dataset"
+        - folder_path: "/media/farid/data1/projects/ai-toolkit/dataset"
           caption_ext: "txt"
           caption_dropout_rate: 0.05  # will drop out the caption 5% of time
           shuffle_tokens: false  # shuffle caption order, split by commas
@@ -39,7 +39,7 @@ config:
           resolution: [ 512, 768, 1024 ]  # flux enjoys multiple resolutions
       train:
         batch_size: 1
-        steps: 50  # total number of steps to train 500 - 4000 is a good range
+        steps: 2000  # total number of steps to train 500 - 4000 is a good range
         gradient_accumulation_steps: 1
         train_unet: true
         train_text_encoder: false  # probably won't work with flux
@@ -69,7 +69,7 @@ config:
 #        low_vram: true  # uncomment this if the GPU is connected to your monitors. It will use lescon  s vram to quantize, but is slower.
       sample:
         sampler: "flowmatch" # must match train.noise_scheduler
-        sample_every: 25 # sample every this many steps
+        sample_every: 250 # sample every this many steps
         width: 1024
         height: 1024
         prompts:

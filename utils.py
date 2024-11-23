@@ -5,6 +5,9 @@ import base64
 import subprocess
 
 DATASET_FOLDER = "dataset"
+# Define dataset folder and queue folder
+QUEUE_FOLDER = "queue"
+
 
 class ProgressBar:
     def __init__(self, pct=0):

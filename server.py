@@ -6,7 +6,7 @@ from chainlit.input_widget import Select
 from utils import DATASET_FOLDER
 from image import clean_dataset_folder
 from prepare_dataset import process_images
-from utils import ProgressBar, generate_image, train_model, start_comfyui, stop_comfyui, create_zip_from_folder
+from utils import ProgressBar, generate_image, train_model, start_comfyui, stop_comfyui, create_zip_from_folder, QUEUE_FOLDER
 import yaml
 from lora_manager import LoraMappingManager, LoraVersion
 from datetime import datetime
@@ -15,7 +15,8 @@ import chainlit as cl
 import json
 from dotenv import load_dotenv
 import uuid
-import httpx
+import requests
+from image_server import TrainingStatus
 
 # Load environment variables
 load_dotenv()
@@ -157,11 +158,11 @@ async def start_chat():
             content="Quel est ton prénom? \nTu pourras l'utiliser ensuite pour générer des photos de toi dans toutes les situations qui te passent par la tête!!!"
         ).send()
 
-        result = await prepare_image_tool(message, prenom['output'])
-        print(result)
+        #esult = await prepare_image_tool(message, prenom['output'])
+        #print(result)
         await cl.Message(content="Dataset réalisé...").send()        
     
-        await cl.Message(content=f"Merci {prenom['output']}, l'entrainement sur tes images va débuter. Cela peut durer jusqu'à 3 heures.\n Soit patient, tu seras récompensé ;-)").send()
+        await cl.Message(content=f"Merci {prenom['output']}, l'entrainement sur tes images va débuter.").send()
 
         result = await prepare_training_image_tool(message, prenom['output'])
         
@@ -267,20 +268,21 @@ async def train_image_tool(message: cl.Message, character_name : str):
     
     return False
 
-async def call_train_endpoint(dataset_zip, yaml_path, username, character_name):
-    endpoint_url = "http://localhost:8000/train"
+def call_train_endpoint(id, dataset_zip, yaml_path, username, character_name):
+    endpoint_url = "http://localhost:8886/train"
     data = {
+        "id": id,
         "dataset_zip": dataset_zip,
         "yaml_path": yaml_path,
+        "status": TrainingStatus.QUEUED,
         "username": username,
         "character_name": character_name
     }
+    response = requests.post(endpoint_url, json=data)
     
-    async with httpx.AsyncClient() as client:
-        response = await client.post(endpoint_url, json=data)
-        return response.json()
+    return response.json()
     
-def generate_lora_training_file(character_name: str, base_config_path: str = "config/train_lora_24gb.yaml", output_folder: str = "configs"):
+def generate_lora_training_file(character_name: str, base_config_path: str = "config/train_lora_24gb.yaml", output_folder: str = QUEUE_FOLDER, unique_id: str = "99999"):
     """
     Generate a new LoRA training file for a given character name and UUID.
 
@@ -304,9 +306,6 @@ def generate_lora_training_file(character_name: str, base_config_path: str = "co
         raise FileNotFoundError(f"Base configuration file not found at {base_config_path}")
     except yaml.YAMLError as e:
         raise ValueError(f"Error parsing YAML file: {e}")
-
-    # Generate a unique ID
-    unique_id = str(uuid.uuid4())
 
     # Update the configuration
     config_data['config']['name'] = f"{character_name}_flux_lora_v6"
@@ -335,15 +334,15 @@ async def prepare_training_image_tool(message: cl.Message, character_name: str):
         message (cl.Message): The incoming message.
         character_name (str): The name of the character for whom the dataset is prepared.
     """
-    # Define dataset folder and queue folder
-    QUEUE_FOLDER = "queue"
+        # Generate a unique ID
+    unique_id = str(uuid.uuid4())
     
     # Ensure the queue folder exists
     if not os.path.exists(QUEUE_FOLDER):
         os.makedirs(QUEUE_FOLDER)
         
     # Generate a UUID-based zip file name
-    zip_file_name = f"dataset-{uuid.uuid4()}-{{character_name}}.zip"
+    zip_file_name = f"{character_name}-dataset-{unique_id}.zip"
     output_zip = os.path.join(QUEUE_FOLDER, zip_file_name)
 
     try:
@@ -351,13 +350,14 @@ async def prepare_training_image_tool(message: cl.Message, character_name: str):
         create_zip_from_folder(DATASET_FOLDER, output_zip)
         
         # create the LORA training config file
-        lora_config_path = generate_lora_training_file(character_name)
+        lora_config_path = generate_lora_training_file(character_name=character_name, unique_id=unique_id, output_folder=QUEUE_FOLDER)
         
         # register training request in the queue
         train_response = call_train_endpoint(
+            unique_id,
             output_zip, 
             lora_config_path, 
-            cl.user_session.get("user"), 
+            cl.user_session.get("user").identifier, 
             character_name=character_name)
 
         # Return a success response with the zip file path

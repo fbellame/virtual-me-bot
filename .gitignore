@@ -165,3 +165,4 @@ dataset/
 .files/
 output/
 user_config/
+queue/
